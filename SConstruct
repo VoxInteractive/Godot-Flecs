@@ -14,11 +14,12 @@ env = SConscript("godot-cpp/SConstruct")
 
 env.Append(CPPPATH=["src/", "flecs/distr/", "."])
 flecs_c_source = "flecs/distr/flecs.c"
-sources = Glob("src/*.cpp")
+sources = Glob("src/*.cpp") + Glob("src/systems/*.cpp")
 
 # Always compile flecs.c as C code, and fix winsock header redefinition on Windows
 if env["platform"] == "windows":
     env.Append(CXXFLAGS=["/std:c++17"])
+    env.Append(LIBS=["Ws2_32"])
     flecs_c_obj = env.SharedObject(
         target="flecs_c_obj",
         source=[flecs_c_source],

@@ -1,5 +1,7 @@
+
 #include "flecs_world.h"
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
 
 using namespace godot;
 
@@ -11,7 +13,19 @@ void FlecsWorld::_bind_methods()
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "size", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT), "set_size", "get_size");
 }
 
-FlecsWorld::FlecsWorld() : FlecsWorld(Vector2i(1600, 900)) {}
+FlecsWorld::FlecsWorld()
+{
+    size = Vector2i(
+        godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_width"),
+        godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_height"));
+    age = 0.0;
+}
+
+void FlecsWorld::_ready()
+{
+    // Print world size for verification
+    godot::UtilityFunctions::print("FlecsWorld size: ", size);
+}
 
 FlecsWorld::FlecsWorld(const Vector2i &p_size)
     : size(p_size)

@@ -1,8 +1,34 @@
-[gd_scene load_steps=2 format=3 uid="uid://c8fcjrsghgcjy"]
-
-[ext_resource type="Script" uid="uid://c7aoc2y0dj3v5" path="res://world.gd" id="1_ig7tw"]
+[gd_scene format=3 uid="uid://c8fcjrsghgcjy"]
 
 [node name="Main" type="Node"]
 
 [node name="World" type="FlecsWorld" parent="."]
-script = ExtResource("1_ig7tw")
+script_path = "res://FlecsScripts/game_of_life.fs"
+multimesh_instance_path = NodePath("../Canvas")
+script = "using flecs.meta
+ 
+struct MaxSpeed {
+  value = f32
+}
+ 
+struct Position {
+  x = f32
+  y = f32
+}
+ 
+prefab SpaceShip {
+  MaxSpeed: {value: 100}
+ 
+  cockpit {
+    Position: {x: -10, y: 0}
+  }
+}
+ 
+my_spaceship : SpaceShip {
+  Position: {x: 10, y: 20}
+}
+"
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Canvas" type="MultiMeshInstance2D" parent="."]

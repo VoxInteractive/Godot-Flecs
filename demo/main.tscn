@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8fcjrsghgcjy"]
+
+[ext_resource type="Script" uid="uid://dl0qbknbuk1xp" path="res://main.gd" id="1_0xm2m"]
+[ext_resource type="Texture2D" uid="uid://btju8puf3u7fr" path="res://icon.svg" id="1_ig7tw"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_0xm2m")
+
+[node name="FlecsWorld" type="FlecsWorld" parent="."]
+amplitude = 100.0
+speed = 2.4699999999999998
+texture = ExtResource("1_ig7tw")
+centered = false
+
+[connection signal="position_changed" from="FlecsWorld" to="." method="_on_flecs_world_position_changed"]

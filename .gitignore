@@ -1,3 +1,6 @@
+.sconsign.dblite
+src/*.os
+
 # Prerequisites
 *.d
 

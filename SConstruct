@@ -12,7 +12,7 @@ env = SConscript("godot-cpp/SConstruct")
 # - CPPDEFINES are for pre-processor defines
 # - LINKFLAGS are for linking flags
 
-env.Append(CPPPATH=["src/", "flecs/distr/"])
+env.Append(CPPPATH=["src/", "flecs/distr/", "."])
 flecs_c_source = "flecs/distr/flecs.c"
 sources = Glob("src/*.cpp")
 

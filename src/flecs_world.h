@@ -1,36 +1,33 @@
 #ifndef FLECS_WORLD_H
 #define FLECS_WORLD_H
 
-#include <godot_cpp/classes/sprite2d.hpp>
+#include <godot_cpp/classes/node.hpp>
+#include <flecs/distr/flecs.h>
 
 namespace godot
 {
 
-    class FlecsWorld : public Sprite2D
+    class FlecsWorld : public Node
     {
-        GDCLASS(FlecsWorld, Sprite2D)
+        GDCLASS(FlecsWorld, Node)
 
-    private:
-        double time_passed;
-        double time_emit;
-        double amplitude;
-        double speed;
+    public:
+        FlecsWorld();
+        FlecsWorld(const Vector2i &p_size);
+        ~FlecsWorld();
+
+        void _physics_process(double delta) override;
+        double get_age() const;
+        void set_size(const Vector2i &p_size);
+        Vector2i get_size() const;
 
     protected:
         static void _bind_methods();
 
-    public:
-        FlecsWorld();
-        ~FlecsWorld();
-
-        void _process(double delta) override;
-
-        // Node properties
-        double get_amplitude() const;
-        void set_amplitude(const double p_amplitude);
-
-        double get_speed() const;
-        void set_speed(const double p_speed);
+    private:
+        flecs::world world;
+        double age;
+        Vector2i size;
     };
 }
 

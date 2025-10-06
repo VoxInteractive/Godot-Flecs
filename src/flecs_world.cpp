@@ -5,64 +5,46 @@ using namespace godot;
 
 void FlecsWorld::_bind_methods()
 {
-    ClassDB::bind_method(D_METHOD("get_amplitude"), &FlecsWorld::get_amplitude);
-    ClassDB::bind_method(D_METHOD("set_amplitude", "p_amplitude"), &FlecsWorld::set_amplitude);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "amplitude"), "set_amplitude", "get_amplitude");
-
-    ClassDB::bind_method(D_METHOD("get_speed"), &FlecsWorld::get_speed);
-    ClassDB::bind_method(D_METHOD("set_speed", "p_speed"), &FlecsWorld::set_speed);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "speed", PROPERTY_HINT_RANGE, "0,20,0.01"), "set_speed", "get_speed");
-
-    ADD_SIGNAL(MethodInfo("position_changed", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::VECTOR2, "new_pos")));
+    ClassDB::bind_method(D_METHOD("get_age"), &FlecsWorld::get_age);
+    ClassDB::bind_method(D_METHOD("set_size", "p_size"), &FlecsWorld::set_size);
+    ClassDB::bind_method(D_METHOD("get_size"), &FlecsWorld::get_size);
+    ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "size", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT), "set_size", "get_size");
 }
 
-FlecsWorld::FlecsWorld()
+FlecsWorld::FlecsWorld() : FlecsWorld(Vector2i(1600, 900)) {}
+
+FlecsWorld::FlecsWorld(const Vector2i &p_size)
+    : size(p_size)
 {
-    // Initialize any variables here.
-    time_passed = 0.0;
-    time_emit = 0.0;
-    amplitude = 10.0;
-    speed = 1.0;
+    age = 0.0;
 }
+
+void FlecsWorld::set_size(const Vector2i &p_size)
+{
+    size = p_size;
+}
+
+Vector2i FlecsWorld::get_size() const
+{
+    return size;
+}
+
+void FlecsWorld::_physics_process(double delta)
+{
+    age += delta;
+}
+
+double FlecsWorld::get_age() const
+{
+    return age;
+}
+
+// void FlecsWorld::set_example(const double p_example)
+// {
+//     example = p_example;
+// }
 
 FlecsWorld::~FlecsWorld()
 {
     // Add your cleanup here.
-}
-
-void FlecsWorld::_process(double delta)
-{
-    time_passed += speed * delta;
-
-    Vector2 new_position = Vector2(amplitude + (amplitude * sin(time_passed * 2.0)), amplitude + (amplitude * cos(time_passed * 1.5)));
-
-    set_position(new_position);
-
-    time_emit += delta;
-    if (time_emit > 1.0)
-    {
-        emit_signal("position_changed", this, new_position);
-
-        time_emit = 0.0;
-    }
-}
-
-double FlecsWorld::get_amplitude() const
-{
-    return amplitude;
-}
-
-void FlecsWorld::set_amplitude(const double p_amplitude)
-{
-    amplitude = p_amplitude;
-}
-
-double FlecsWorld::get_speed() const
-{
-    return speed;
-}
-
-void FlecsWorld::set_speed(const double p_speed)
-{
-    speed = p_speed;
 }

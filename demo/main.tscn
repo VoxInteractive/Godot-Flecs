@@ -3,8 +3,6 @@
 [node name="Main" type="Node"]
 
 [node name="World" type="FlecsWorld" parent="."]
-script_path = "res://FlecsScripts/game_of_life.fs"
-multimesh_instance_path = NodePath("../Canvas")
 script = "using flecs.meta
  
 struct MaxSpeed {

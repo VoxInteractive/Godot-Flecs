@@ -14,17 +14,14 @@ namespace godot
 
     public:
         FlecsWorld();
-        FlecsWorld(const Vector2i &p_size);
         ~FlecsWorld();
+
+        double get_age() const;
+        double get_size_factor() const;
+        void set_size_factor(double p_size_factor);
 
         void _ready() override;
         void _physics_process(double delta) override;
-        double get_age() const;
-        void set_size(const Vector2i &p_size);
-        Vector2i get_size() const;
-
-    public:
-        static Vector2i get_project_viewport_size();
 
     protected:
         static void _bind_methods();
@@ -33,6 +30,7 @@ namespace godot
         flecs::world world;
         double age;
         Vector2i size;
+        double size_factor = 1.0;
     };
 }
 

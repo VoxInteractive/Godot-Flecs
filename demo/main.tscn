@@ -1,32 +1,26 @@
-[gd_scene format=3 uid="uid://c8fcjrsghgcjy"]
+[gd_scene load_steps=7 format=3 uid="uid://c8fcjrsghgcjy"]
+
+[ext_resource type="Script" uid="uid://c7aoc2y0dj3v5" path="res://world.gd" id="1_ig7tw"]
+[ext_resource type="Shader" uid="uid://d3c0e1iormtto" path="res://canvas.gdshader" id="2_0xm2m"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7dm0k"]
+shader = ExtResource("2_0xm2m")
+
+[sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
+material = SubResource("ShaderMaterial_7dm0k")
+
+[sub_resource type="MultiMesh" id="MultiMesh_0xm2m"]
+mesh = SubResource("QuadMesh_ig7tw")
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_0xm2m"]
 
 [node name="Main" type="Node"]
 
 [node name="World" type="FlecsWorld" parent="."]
-script = "using flecs.meta
- 
-struct MaxSpeed {
-  value = f32
-}
- 
-struct Position {
-  x = f32
-  y = f32
-}
- 
-prefab SpaceShip {
-  MaxSpeed: {value: 100}
- 
-  cockpit {
-    Position: {x: -10, y: 0}
-  }
-}
- 
-my_spaceship : SpaceShip {
-  Position: {x: 10, y: 20}
-}
-"
+script = ExtResource("1_ig7tw")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 
 [node name="Canvas" type="MultiMeshInstance2D" parent="."]
+multimesh = SubResource("MultiMesh_0xm2m")
+texture = SubResource("PlaceholderTexture2D_0xm2m")

@@ -1,6 +1,10 @@
 #include "gol_systems.h"
-// Keep Flecs-based GoL systems aligned with the vendored Flecs version
 #include <cstdlib>
+#include <unordered_map>
+// Godot utility functions for debug prints
+#include <godot_cpp/variant/utility_functions.hpp>
+
+using namespace godot;
 
 // Temporary component to accumulate neighbor counts each tick
 struct NeighborCount
@@ -11,40 +15,49 @@ struct NeighborCount
 static inline int neighbor_offsets[8][2] = {
     {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
 
+// Simple global index from (x,y) -> entity for fast neighbor lookup
+static std::unordered_map<long long, flecs::entity> g_cell_index;
+static int g_grid_w = 0, g_grid_h = 0;
+static inline long long key_xy(int x, int y)
+{
+    return (static_cast<long long>(y) << 32) | (static_cast<unsigned int>(x));
+}
+
 void register_gol_systems(flecs::world &world)
 {
-    // Ensure components are registered
+    // Ensure components are registered (names align with FlecsScript)
     world.component<Cell>()
         .member<int>("x")
         .member<int>("y");
     world.component<Alive>();
     world.component<NeighborCount>().member<int>("n");
 
-    // System: reset neighbor counts to 0
+    // System: reset neighbor counts to 0 for all cells that have it
     world.system<NeighborCount>("ResetNeighborCounts")
         .kind(flecs::OnUpdate)
         .each([](NeighborCount &nc)
               { nc.n = 0; });
 
-    // Query for all cells to assist neighbor accumulation
-    auto all_cells = world.query_builder<Cell>().cached().build();
-
-    // For all alive cells, increment neighbor count of neighbors (brute-force)
-    world.system<const Cell>("AccumulateNeighborsBrute")
+    // For all alive cells, increment neighbor count of the 8 neighbors via index
+    world.system<const Cell>("AccumulateNeighborsIndexed")
         .kind(flecs::OnUpdate)
         .with<Alive>()
-        .each([&](flecs::entity /*alive_e*/, const Cell &alive_cell)
+        .each([](flecs::entity /*alive_e*/, const Cell &alive_cell)
               {
             int cx = alive_cell.x;
             int cy = alive_cell.y;
-            all_cells.each([&](flecs::entity neigh, Cell &cn) {
-                int dx = cn.x - cx; int dy = cn.y - cy;
-                if ((dx || dy) && dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
+            for (int i = 0; i < 8; ++i) {
+                int nx = cx + neighbor_offsets[i][0];
+                int ny = cy + neighbor_offsets[i][1];
+                if (nx < 0 || ny < 0 || nx >= g_grid_w || ny >= g_grid_h) continue;
+                auto it = g_cell_index.find(key_xy(nx, ny));
+                if (it != g_cell_index.end()) {
+                    flecs::entity neigh = it->second;
                     auto &nc = neigh.get_mut<NeighborCount>();
                     nc.n += 1;
                     neigh.modified<NeighborCount>();
                 }
-            }); });
+            } });
 
     // Apply Life rules
     world.system<Cell, NeighborCount>("ApplyLifeRules")
@@ -66,21 +79,42 @@ void register_gol_systems(flecs::world &world)
 
 void init_gol_grid(flecs::world &world, int width, int height, int seed, float alive_probability)
 {
+    g_cell_index.clear();
+    g_grid_w = width;
+    g_grid_h = height;
+
     world.defer_begin();
     std::srand(seed);
     for (int y = 0; y < height; ++y)
     {
         for (int x = 0; x < width; ++x)
         {
-            auto e = world.entity().set<Cell>({x, y});
+            auto e = world.entity()
+                         .set<Cell>({x, y})
+                         .set<NeighborCount>({0});
             float r = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
             if (r < alive_probability)
             {
                 e.add<Alive>();
             }
+            g_cell_index.emplace(key_xy(x, y), e);
         }
     }
     world.defer_end();
+
+    // Ensure at least a small visible pattern exists for visual verification
+    auto force_alive = [&](int fx, int fy)
+    {
+        auto it = g_cell_index.find(key_xy(fx, fy));
+        if (it != g_cell_index.end())
+        {
+            it->second.add<Alive>();
+        }
+    };
+    force_alive(1, 1);
+    force_alive(2, 1);
+    force_alive(3, 1);
+    UtilityFunctions::print("init_gol_grid: forced Alive at (1,1),(2,1),(3,1)");
 }
 
 void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *out_max_x, int *out_max_y)
@@ -93,6 +127,13 @@ void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *ou
         out.push_back({c.x, c.y});
         if (c.x > max_x) max_x = c.x;
         if (c.y > max_y) max_y = c.y; });
+    // Diagnostic: print how many alive cells were collected and sample the first few
+    int found = (int)out.size();
+    UtilityFunctions::print("collect_alive_cells: found=", found);
+    for (int i = 0; i < (int)out.size() && i < 10; ++i)
+    {
+        UtilityFunctions::print("  alive[", i, "] = (", out[i].x, ",", out[i].y, ")");
+    }
     if (out_max_x)
         *out_max_x = max_x;
     if (out_max_y)

@@ -19,6 +19,12 @@ namespace godot
         double get_age() const;
         double get_size_factor() const;
         void set_size_factor(double p_size_factor);
+        // Initialize/register Game of Life systems and seed the grid if not already initialized
+        void initialize_gol();
+        // Return a 2D (width x height) boolean map of alive/dead cells as
+        // an Array of PackedByteArray rows (each byte is 0 or 1). Callable
+        // from GDScript as `get_alive_map()`.
+        godot::Array get_alive_map();
 
         void _ready() override;
         void _physics_process(double delta) override;
@@ -31,6 +37,9 @@ namespace godot
         double age;
         Vector2i size;
         double size_factor = 1.0;
+        // accumulator to throttle per-frame diagnostics printed from C++
+        double physics_print_acc = 0.0;
+        bool initialized = false;
     };
 }
 

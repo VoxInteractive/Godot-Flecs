@@ -142,33 +142,6 @@ void FlecsWorld::initialize_gol()
     // to avoid data races. We can revisit multi-threading later.
     world.set_threads(1);
 
-    // Attempt to load FlecsScript definitions if present
-    // Prefer Godot's res:// paths to ensure correctness regardless of CWD
-    {
-        String res_path = String("res://demo/FlecsScripts/game_of_life.flecs");
-        String os_path = ProjectSettings::get_singleton()->globalize_path(res_path);
-#ifdef FLECS_SCRIPT
-        if (std::filesystem::exists(os_path.utf8().get_data()))
-        {
-            int rc = ecs_script_run_file(world.c_ptr(), os_path.utf8().get_data());
-            if (rc == 0)
-            {
-                godot::UtilityFunctions::print("Loaded FlecsScript: ", res_path);
-            }
-            else
-            {
-                godot::UtilityFunctions::print("Failed to load FlecsScript (rc=", rc, "): ", res_path);
-            }
-        }
-        else
-        {
-            godot::UtilityFunctions::print("FlecsScript not found (optional): ", res_path);
-        }
-#else
-        godot::UtilityFunctions::print("Flecs script module not enabled; skipping script load: ", res_path);
-#endif
-    }
-
     // Initialize grid with a modest alive probability. Use a fixed seed for
     // reproducibility; callers can re-seed or re-init via exposed methods.
     int seed = 42;

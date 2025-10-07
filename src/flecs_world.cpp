@@ -4,7 +4,7 @@
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
-#include "systems/gol_systems.h"
+#include "systems/game_of_life.h"
 #include <godot_cpp/classes/project_settings.hpp>
 #include <filesystem>
 

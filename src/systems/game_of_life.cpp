@@ -1,4 +1,4 @@
-#include "gol_systems.h"
+#include "game_of_life.h"
 #include <cstdlib>
 #include <unordered_map>
 // Godot utility functions for debug prints

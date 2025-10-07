@@ -18,7 +18,7 @@ void FlecsWorld::_bind_methods()
     ClassDB::bind_method(D_METHOD("get_alive_map"), &FlecsWorld::get_alive_map);
     ClassDB::bind_method(D_METHOD("get_size_factor"), &FlecsWorld::get_size_factor);
     ClassDB::bind_method(D_METHOD("set_size_factor", "p_size_factor"), &FlecsWorld::set_size_factor);
-    ClassDB::bind_method(D_METHOD("initialize_gol"), &FlecsWorld::initialize_gol);
+    ClassDB::bind_method(D_METHOD("initialize_gol"), &FlecsWorld::initialize_game_of_life);
     // Make size_factor editable in the Editor with range 0.25 - 4.0
     ADD_PROPERTY(
         PropertyInfo(Variant::FLOAT, "size_factor", PROPERTY_HINT_RANGE, "0.2,4.0,0.2", PROPERTY_USAGE_DEFAULT),
@@ -51,7 +51,6 @@ void FlecsWorld::set_size_factor(double p_size_factor)
     size = Vector2i(
         static_cast<int>(project_viewport_size.x * size_factor),
         static_cast<int>(project_viewport_size.y * size_factor));
-    godot::UtilityFunctions::print("FlecsWorld size: ", size);
 }
 
 void FlecsWorld::_ready()
@@ -59,7 +58,7 @@ void FlecsWorld::_ready()
     // Print world size for verification
     godot::UtilityFunctions::print("FlecsWorld initialised. size=", size);
     // Ensure initialization happens once even if called from GDScript explicitly.
-    initialize_gol();
+    initialize_game_of_life();
 }
 
 void FlecsWorld::_physics_process(double delta)
@@ -77,7 +76,6 @@ void FlecsWorld::_physics_process(double delta)
         physics_print_acc = 0.0;
         std::vector<CellPos> alive_positions;
         collect_alive_cells(world, alive_positions);
-        godot::UtilityFunctions::print("C++ alive_count(after progress): ", (int)alive_positions.size());
     }
 }
 
@@ -128,7 +126,7 @@ FlecsWorld::~FlecsWorld()
     // Add your cleanup here.
 }
 
-void FlecsWorld::initialize_gol()
+void FlecsWorld::initialize_game_of_life()
 {
     if (initialized)
         return;
@@ -152,5 +150,4 @@ void FlecsWorld::initialize_gol()
     // Diagnostic: report initial number of alive cells created by init_gol_grid
     std::vector<CellPos> alive_positions;
     collect_alive_cells(world, alive_positions);
-    godot::UtilityFunctions::print("Initial alive_count (C++): ", (int)alive_positions.size());
 }

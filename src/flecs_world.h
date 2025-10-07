@@ -20,7 +20,7 @@ namespace godot
         double get_size_factor() const;
         void set_size_factor(double p_size_factor);
         // Initialize/register Game of Life systems and seed the grid if not already initialized
-        void initialize_gol();
+        void initialize_game_of_life();
         // Return a 2D (width x height) boolean map of alive/dead cells as
         // an Array of PackedByteArray rows (each byte is 0 or 1). Callable
         // from GDScript as `get_alive_map()`.

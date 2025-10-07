@@ -114,7 +114,6 @@ void init_gol_grid(flecs::world &world, int width, int height, int seed, float a
     force_alive(1, 1);
     force_alive(2, 1);
     force_alive(3, 1);
-    UtilityFunctions::print("init_gol_grid: forced Alive at (1,1),(2,1),(3,1)");
 }
 
 void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *out_max_x, int *out_max_y)
@@ -129,11 +128,7 @@ void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *ou
         if (c.y > max_y) max_y = c.y; });
     // Diagnostic: print how many alive cells were collected and sample the first few
     int found = (int)out.size();
-    UtilityFunctions::print("collect_alive_cells: found=", found);
-    for (int i = 0; i < (int)out.size() && i < 10; ++i)
-    {
-        UtilityFunctions::print("  alive[", i, "] = (", out[i].x, ",", out[i].y, ")");
-    }
+    (void)found; // silently ignore diagnostic count in release
     if (out_max_x)
         *out_max_x = max_x;
     if (out_max_y)

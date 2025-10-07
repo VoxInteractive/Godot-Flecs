@@ -37,8 +37,6 @@ namespace godot
         double age;
         Vector2i size;
         double size_factor = 1.0;
-        // accumulator to throttle per-frame diagnostics printed from C++
-        double physics_print_acc = 0.0;
         bool initialized = false;
     };
 }

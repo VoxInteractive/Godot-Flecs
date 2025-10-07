@@ -9,6 +9,7 @@
 #include <filesystem>
 
 #include <algorithm>
+#include <chrono>
 
 using namespace godot;
 
@@ -64,18 +65,14 @@ void FlecsWorld::_ready()
 void FlecsWorld::_physics_process(double delta)
 {
     age += delta;
-    // Advance the flecs ECS world so registered systems (Game of Life) execute.
-    // Use a single progress call per physics frame.
-    world.progress();
-
-    // Throttle a diagnostic printed from C++ to once per second so we can
-    // observe alive counts directly in the native side.
-    physics_print_acc += delta;
-    if (physics_print_acc >= 1.0)
-    {
-        physics_print_acc = 0.0;
-        std::vector<CellPos> alive_positions;
-        collect_alive_cells(world, alive_positions);
+    { // Time how long a single ECS progress step takes
+        using clock = std::chrono::high_resolution_clock;
+        auto t0 = clock::now();
+        world.progress();
+        auto t1 = clock::now();
+        // Report as milliseconds (floating point) for easier reading
+        auto dur = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        godot::UtilityFunctions::print("world.progress() took ", dur, "ms");
     }
 }
 

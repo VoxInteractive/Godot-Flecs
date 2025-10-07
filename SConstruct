@@ -23,15 +23,14 @@ if env["platform"] == "windows":
     flecs_c_obj = env.SharedObject(
         target="flecs_c_obj",
         source=[flecs_c_source],
-        # Only define WIN32_LEAN_AND_MEAN and force C compilation
-        CCFLAGS=["/TC", "/DWIN32_LEAN_AND_MEAN"],
+        CCFLAGS=["/TC", "/DWIN32_LEAN_AND_MEAN", "/O2", "/arch:AVX2", "/DFLECS_NDEBUG"],
     )
 else:
     env.Append(CXXFLAGS=["-std=c++17"])
     flecs_c_obj = env.SharedObject(
         target="flecs_c_obj",
         source=[flecs_c_source],
-        CFLAGS=["-std=gnu99"],
+        CFLAGS=["-std=gnu99", "-O2", "-DFLECS_NDEBUG"],
     )
 
 all_objs = env.SharedObject(sources) + [flecs_c_obj]

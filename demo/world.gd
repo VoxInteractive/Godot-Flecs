@@ -1,132 +1,19 @@
 extends FlecsWorld
 
-# We now render Game of Life as a single texture on one quad for best performance.
-# This avoids creating per-cell instances/colors and minimizes CPU <-> GPU traffic.
+@onready var canvas: Sprite2D = $"../Canvas"
 
-var _initialized := false
-var _frame_counter := 0
-var cell_size := 8.0
-var fit_to_viewport := true
+var tex: ImageTexture
 
 func _ready() -> void:
-	# Ensure ECS systems are registered and GoL grid is initialized from C++.
 	if has_method("initialize_gol"):
 		call("initialize_gol")
 
-	var canvas := get_node_or_null("../Canvas")
-	if canvas == null:
-		canvas = get_node_or_null("Canvas")
-	if canvas == null:
-		push_error("Canvas node not found")
-		return
-
-	# Initialize the texture once; size comes from C++ get_gol_texture().
-	var tex := get_gol_texture()
-	if tex == null:
-		# If grid not ready yet, enable processing to complete init next frame.
-		set_process(true)
-		set_physics_process(true)
-		return
-
-	# Assign texture and configure sprite properties for crisp pixel rendering.
 	canvas.texture = tex
-	# Use nearest filtering so cells stay crisp when scaled.
-	canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	canvas.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-
-	# Place sprite at top-left and scale.
-	canvas.centered = false
-	_update_canvas_transform(canvas, tex)
-
-	# Minimal unshaded shader that displays L8 texture as white for alive (255) and black for dead (0).
-	if canvas.material == null:
-		var shader := Shader.new()
-		shader.code = """
-			shader_type canvas_item;
-			render_mode unshaded;
-			void fragment() {
-				float v = texture(TEXTURE, UV).r;
-				COLOR = vec4(vec3(v), 1.0);
-			}
-		"""
-		var mat := ShaderMaterial.new()
-		mat.shader = shader
-		canvas.material = mat
-
-	_initialized = true
-
-	# Ensure per-frame updates and physics step (C++ advances ECS in _physics_process).
-	set_process(true)
-	set_physics_process(true)
-
-	# React to window/viewport size changes to keep the texture fitted.
-	if get_tree() and get_tree().root:
-		get_tree().root.size_changed.connect(_on_window_size_changed)
-
 
 func _init_multimesh(_mm: MultiMesh, _total: int) -> void:
 	# Legacy no-op kept for compatibility; no longer used with texture-based rendering.
 	pass
 
-
 func _process(_delta: float) -> void:
-	_frame_counter += 1
-
-	var canvas := get_node_or_null("../Canvas")
-	if canvas == null:
-		canvas = get_node_or_null("Canvas")
-	if canvas == null:
-		if _frame_counter % 60 == 0:
-			print("_process: Canvas node not found")
-		return
-
-	var tex := get_gol_texture()
-	if tex == null:
-		if _frame_counter % 60 == 0:
-			print("_process: get_gol_texture() returned null")
-		return
-
-	if not _initialized:
-		# Complete deferred init when texture becomes available.
-		canvas.texture = tex
-		canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		canvas.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-		canvas.centered = false
-		_update_canvas_transform(canvas, tex)
-		_initialized = true
-		return
-
-	# Per-frame: update the texture only if the Ref changed. C++ updates pixels in-place.
-	if canvas.texture != tex:
-		canvas.texture = tex
-		_update_canvas_transform(canvas, tex)
-
-func _update_canvas_transform(canvas: Sprite2D, tex: Texture2D) -> void:
-	if tex == null:
-		return
-	if fit_to_viewport:
-		var vp_size: Vector2 = get_viewport().get_visible_rect().size
-		var tw: float = float(tex.get_width())
-		var th: float = float(tex.get_height())
-		if tw <= 0.0 or th <= 0.0:
-			return
-		# Integer scale for crisp pixels
-		var sx: int = int(floor(vp_size.x / tw))
-		var sy: int = int(floor(vp_size.y / th))
-		var s_i: int = max(1, min(sx, sy))
-		var s: float = float(s_i)
-		canvas.scale = Vector2(s, s)
-		canvas.position = Vector2.ZERO
-	else:
-		canvas.scale = Vector2(cell_size, cell_size)
-		canvas.position = Vector2.ZERO
-
-func _on_window_size_changed() -> void:
-	var canvas := get_node_or_null("../Canvas")
-	if canvas == null:
-		canvas = get_node_or_null("Canvas")
-	if canvas == null:
-		return
-	var tex: Texture2D = canvas.texture
-	if tex:
-		_update_canvas_transform(canvas, tex)
+	# would subviewport be faster?
+	canvas.texture = get_gol_texture()

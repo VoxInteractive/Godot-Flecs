@@ -1,6 +1,10 @@
-[gd_scene load_steps=3 format=3 uid="uid://c8fcjrsghgcjy"]
+[gd_scene load_steps=5 format=3 uid="uid://c8fcjrsghgcjy"]
 
 [ext_resource type="Script" uid="uid://c7aoc2y0dj3v5" path="res://world.gd" id="1_ig7tw"]
+[ext_resource type="Shader" uid="uid://d3c0e1iormtto" path="res://canvas.gdshader" id="2_0xm2m"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0xm2m"]
+shader = ExtResource("2_0xm2m")
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_0xm2m"]
 
@@ -14,4 +18,5 @@ anchor_mode = 0
 
 [node name="Canvas" type="Sprite2D" parent="."]
 texture_filter = 1
+material = SubResource("ShaderMaterial_0xm2m")
 texture = SubResource("PlaceholderTexture2D_0xm2m")

@@ -72,7 +72,6 @@ void FlecsWorld::_physics_process(double delta)
         auto t1 = clock::now();
         // Report as milliseconds (floating point) for easier reading
         auto dur = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        godot::UtilityFunctions::print("world.progress() took ", dur, "ms");
     }
 }
 
@@ -136,6 +135,10 @@ void FlecsWorld::initialize_game_of_life()
     // Keep ECS single-threaded while we mutate neighbor counts from systems
     // to avoid data races. We can revisit multi-threading later.
     world.set_threads(1);
+
+    // Enable the Flecs Explorer
+    world.set<flecs::Rest>({});
+    world.import <flecs::stats>();
 
     // Initialize grid with a modest alive probability. Use a fixed seed for
     // reproducibility; callers can re-seed or re-init via exposed methods.

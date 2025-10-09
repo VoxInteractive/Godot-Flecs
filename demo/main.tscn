@@ -10,7 +10,7 @@
 script = ExtResource("1_ig7tw")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-offset = Vector2(320, 180)
+anchor_mode = 0
 
 [node name="Canvas" type="Sprite2D" parent="."]
 texture_filter = 1

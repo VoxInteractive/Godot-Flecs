@@ -6,6 +6,7 @@ extends FlecsWorld
 var _initialized := false
 var _frame_counter := 0
 var cell_size := 8.0
+var fit_to_viewport := true
 
 func _ready() -> void:
 	# Ensure ECS systems are registered and GoL grid is initialized from C++.
@@ -33,10 +34,9 @@ func _ready() -> void:
 	canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	canvas.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 
-	# Center the sprite and scale so 1 texel -> cell_size units.
-	canvas.centered = true
-	canvas.position = Vector2.ZERO
-	canvas.scale = Vector2(cell_size, cell_size)
+	# Place sprite at top-left and scale.
+	canvas.centered = false
+	_update_canvas_transform(canvas, tex)
 
 	# Minimal unshaded shader that displays L8 texture as white for alive (255) and black for dead (0).
 	if canvas.material == null:
@@ -58,6 +58,10 @@ func _ready() -> void:
 	# Ensure per-frame updates and physics step (C++ advances ECS in _physics_process).
 	set_process(true)
 	set_physics_process(true)
+
+	# React to window/viewport size changes to keep the texture fitted.
+	if get_tree() and get_tree().root:
+		get_tree().root.size_changed.connect(_on_window_size_changed)
 
 
 func _init_multimesh(_mm: MultiMesh, _total: int) -> void:
@@ -87,12 +91,42 @@ func _process(_delta: float) -> void:
 		canvas.texture = tex
 		canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		canvas.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-		canvas.centered = true
-		canvas.position = Vector2.ZERO
-		canvas.scale = Vector2(cell_size, cell_size)
+		canvas.centered = false
+		_update_canvas_transform(canvas, tex)
 		_initialized = true
 		return
 
 	# Per-frame: update the texture only if the Ref changed. C++ updates pixels in-place.
 	if canvas.texture != tex:
 		canvas.texture = tex
+		_update_canvas_transform(canvas, tex)
+
+func _update_canvas_transform(canvas: Sprite2D, tex: Texture2D) -> void:
+	if tex == null:
+		return
+	if fit_to_viewport:
+		var vp_size: Vector2 = get_viewport().get_visible_rect().size
+		var tw: float = float(tex.get_width())
+		var th: float = float(tex.get_height())
+		if tw <= 0.0 or th <= 0.0:
+			return
+		# Integer scale for crisp pixels
+		var sx: int = int(floor(vp_size.x / tw))
+		var sy: int = int(floor(vp_size.y / th))
+		var s_i: int = max(1, min(sx, sy))
+		var s: float = float(s_i)
+		canvas.scale = Vector2(s, s)
+		canvas.position = Vector2.ZERO
+	else:
+		canvas.scale = Vector2(cell_size, cell_size)
+		canvas.position = Vector2.ZERO
+
+func _on_window_size_changed() -> void:
+	var canvas := get_node_or_null("../Canvas")
+	if canvas == null:
+		canvas = get_node_or_null("Canvas")
+	if canvas == null:
+		return
+	var tex: Texture2D = canvas.texture
+	if tex:
+		_update_canvas_transform(canvas, tex)

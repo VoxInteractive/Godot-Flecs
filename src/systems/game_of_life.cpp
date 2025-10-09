@@ -1,15 +1,25 @@
 #include "game_of_life.h"
 #include <cstdlib>
 #include <unordered_map>
+#include <vector>
+#include <algorithm>
+#include <thread>
 // Godot utility functions for debug prints
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
 
-// Temporary component to accumulate neighbor counts each tick
+// Temporary per-cell component to store neighbor counts each tick.
+// Only written for the entity being iterated to enable parallelization.
 struct NeighborCount
 {
     int n;
+};
+
+// Temporary per-cell component to store next-state decision.
+struct NextAlive
+{
+    bool v;
 };
 
 static inline int neighbor_offsets[8][2] = {
@@ -18,6 +28,8 @@ static inline int neighbor_offsets[8][2] = {
 // Simple global index from (x,y) -> entity for fast neighbor lookup
 static std::unordered_map<long long, flecs::entity> g_cell_index;
 static int g_grid_w = 0, g_grid_h = 0;
+static std::vector<uint8_t> g_alive_cur;  // row-major, 0/1
+static std::vector<uint8_t> g_alive_next; // row-major, 0/1
 static inline long long key_xy(int x, int y)
 {
     return (static_cast<long long>(y) << 32) | (static_cast<unsigned int>(x));
@@ -31,50 +43,50 @@ void register_gol_systems(flecs::world &world)
         .member<int>("y");
     world.component<Alive>();
     world.component<NeighborCount>().member<int>("n");
+    world.component<NextAlive>().member<bool>("v");
 
-    // System: reset neighbor counts to 0 for all cells that have it
-    world.system<NeighborCount>("ResetNeighborCounts")
+    // Phase A: compute next state into flat buffer letting Flecs handle threading.
+    world.system<const Cell>("SimulateBuffers")
         .kind(flecs::OnUpdate)
-        .each([](NeighborCount &nc)
-              { nc.n = 0; });
-
-    // For all alive cells, increment neighbor count of the 8 neighbors via index
-    world.system<const Cell>("AccumulateNeighborsIndexed")
-        .kind(flecs::OnUpdate)
-        .with<Alive>()
-        .each([](flecs::entity /*alive_e*/, const Cell &alive_cell)
+        .multi_threaded()
+        .each([](flecs::entity /*e*/, const Cell &c)
               {
-            int cx = alive_cell.x;
-            int cy = alive_cell.y;
+            const int W = g_grid_w;
+            const int H = g_grid_h;
+            if (W == 0 || H == 0 || g_alive_cur.size() != (size_t)W * (size_t)H) return;
+            const int x = c.x;
+            const int y = c.y;
+            int count = 0;
+            // Count neighbors with bounds checks (can be optimized with padding later)
             for (int i = 0; i < 8; ++i) {
-                int nx = cx + neighbor_offsets[i][0];
-                int ny = cy + neighbor_offsets[i][1];
-                if (nx < 0 || ny < 0 || nx >= g_grid_w || ny >= g_grid_h) continue;
-                auto it = g_cell_index.find(key_xy(nx, ny));
-                if (it != g_cell_index.end()) {
-                    flecs::entity neigh = it->second;
-                    auto &nc = neigh.get_mut<NeighborCount>();
-                    nc.n += 1;
-                    neigh.modified<NeighborCount>();
+                const int nx = x + neighbor_offsets[i][0];
+                const int ny = y + neighbor_offsets[i][1];
+                if ((unsigned)nx < (unsigned)W && (unsigned)ny < (unsigned)H) {
+                    count += g_alive_cur[(size_t)ny * (size_t)W + (size_t)nx];
                 }
-            } });
-
-    // Apply Life rules
-    world.system<Cell, NeighborCount>("ApplyLifeRules")
+            }
+            const size_t idx = (size_t)y * (size_t)W + (size_t)x;
+            const uint8_t alive = g_alive_cur[idx];
+            g_alive_next[idx] = alive ? (count == 2 || count == 3) : (count == 3); });
+    // Phase B: swap buffers once (single-threaded system).
+    world.system<>("SwapBuffers")
         .kind(flecs::PostUpdate)
-        .each([](flecs::entity e, Cell &, NeighborCount &nc)
+        .each([]()
+              { std::swap(g_alive_cur, g_alive_next); });
+
+    // Phase C: synchronize Alive tag from buffer (parallel over entities).
+    world.system<Cell>("SyncAliveTags")
+        .kind(flecs::PostUpdate)
+        .multi_threaded()
+        .each([](flecs::entity e, Cell &c)
               {
-            bool is_alive = e.has<Alive>();
-            int n = nc.n;
-            if (is_alive) {
-                if (n < 2 || n > 3) {
-                    e.remove<Alive>();
-                }
-            } else {
-                if (n == 3) {
-                    e.add<Alive>();
-                }
-            } });
+            const int W = g_grid_w;
+            const int H = g_grid_h;
+            if (W == 0 || H == 0 || g_alive_cur.size() != (size_t)W * (size_t)H) return;
+            const bool alive = g_alive_cur[(size_t)c.y * (size_t)W + (size_t)c.x] != 0;
+            const bool has_alive = e.has<Alive>();
+            if (alive && !has_alive) e.add<Alive>();
+            else if (!alive && has_alive) e.remove<Alive>(); });
 }
 
 void init_gol_grid(flecs::world &world, int width, int height, int seed, float alive_probability)
@@ -82,6 +94,8 @@ void init_gol_grid(flecs::world &world, int width, int height, int seed, float a
     g_cell_index.clear();
     g_grid_w = width;
     g_grid_h = height;
+    g_alive_cur.assign((size_t)width * (size_t)height, 0);
+    g_alive_next.assign((size_t)width * (size_t)height, 0);
 
     world.defer_begin();
     std::srand(seed);
@@ -91,12 +105,15 @@ void init_gol_grid(flecs::world &world, int width, int height, int seed, float a
         {
             auto e = world.entity()
                          .set<Cell>({x, y})
-                         .set<NeighborCount>({0});
+                         .set<NeighborCount>({0})
+                         .set<NextAlive>({false});
             float r = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-            if (r < alive_probability)
+            const bool alive = (r < alive_probability);
+            if (alive)
             {
                 e.add<Alive>();
             }
+            g_alive_cur[(size_t)y * (size_t)width + (size_t)x] = alive ? 1 : 0;
             g_cell_index.emplace(key_xy(x, y), e);
         }
     }
@@ -114,23 +131,44 @@ void init_gol_grid(flecs::world &world, int width, int height, int seed, float a
     force_alive(1, 1);
     force_alive(2, 1);
     force_alive(3, 1);
+    if (width > 3 && height > 2)
+    {
+        g_alive_cur[1 * width + 1] = 1;
+        g_alive_cur[1 * width + 2] = 1;
+        g_alive_cur[1 * width + 3] = 1;
+    }
 }
 
 void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *out_max_x, int *out_max_y)
 {
     out.clear();
     int max_x = 0, max_y = 0;
-    auto q = world.query_builder<const Cell>().with<Alive>().cached().build();
-    q.each([&](flecs::entity, const Cell &c)
-           {
-        out.push_back({c.x, c.y});
-        if (c.x > max_x) max_x = c.x;
-        if (c.y > max_y) max_y = c.y; });
-    // Diagnostic: print how many alive cells were collected and sample the first few
-    int found = (int)out.size();
-    (void)found; // silently ignore diagnostic count in release
+    const int W = g_grid_w;
+    const int H = g_grid_h;
+    if (W <= 0 || H <= 0 || g_alive_cur.size() != (size_t)W * (size_t)H)
+        return;
+    for (int y = 0; y < H; ++y)
+    {
+        const size_t row_off = (size_t)y * (size_t)W;
+        for (int x = 0; x < W; ++x)
+        {
+            if (g_alive_cur[row_off + (size_t)x])
+            {
+                out.push_back({x, y});
+                if (x > max_x)
+                    max_x = x;
+                if (y > max_y)
+                    max_y = y;
+            }
+        }
+    }
     if (out_max_x)
         *out_max_x = max_x;
     if (out_max_y)
         *out_max_y = max_y;
 }
+
+// Accessors for optimized buffer
+const uint8_t *gol_alive_data() { return g_alive_cur.empty() ? nullptr : g_alive_cur.data(); }
+int gol_width() { return g_grid_w; }
+int gol_height() { return g_grid_h; }

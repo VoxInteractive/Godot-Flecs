@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 
 using namespace godot;
 
@@ -127,10 +128,6 @@ godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
         return Ref<ImageTexture>();
     }
 
-    // Collect alive cell positions
-    std::vector<CellPos> alive_positions;
-    collect_alive_cells(world, alive_positions);
-
     const int w = size.x;
     const int h = size.y;
     const int total = w * h;
@@ -138,16 +135,31 @@ godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
     // Build flat L8 buffer (one byte per pixel)
     PackedByteArray data;
     data.resize(total);
-    // initialize to 0
-    for (int i = 0; i < total; ++i)
-        data.set(i, uint8_t(0));
-
-    for (const auto &p : alive_positions)
+    // Prefer reading optimized buffer when available
+    const uint8_t *buf = gol_alive_data();
+    if (buf && gol_width() == w && gol_height() == h)
     {
-        if (p.x >= 0 && p.x < w && p.y >= 0 && p.y < h)
+        // Copy once into PackedByteArray
+        uint8_t *dst = data.ptrw();
+        memcpy(dst, buf, (size_t)total);
+        // Scale 0/1 to 0/255 for visibility (optional). Done in-place.
+        for (int i = 0; i < total; ++i)
+            dst[i] = dst[i] ? 255 : 0;
+    }
+    else
+    {
+        // Fallback: collect alive positions and mark
+        for (int i = 0; i < total; ++i)
+            data.set(i, uint8_t(0));
+        std::vector<CellPos> alive_positions;
+        collect_alive_cells(world, alive_positions);
+        for (const auto &p : alive_positions)
         {
-            int idx = p.y * w + p.x;
-            data.set(idx, uint8_t(255));
+            if ((unsigned)p.x < (unsigned)w && (unsigned)p.y < (unsigned)h)
+            {
+                const int idx = p.y * w + p.x;
+                data.set(idx, uint8_t(255));
+            }
         }
     }
 
@@ -189,9 +201,8 @@ void FlecsWorld::initialize_game_of_life()
     // Register Game of Life components/systems and initialize the grid so
     // that alive cells exist and can be returned by get_alive_map().
     register_gol_systems(world);
-    // Keep ECS single-threaded while we mutate neighbor counts from systems
-    // to avoid data races. We can revisit multi-threading later.
-    world.set_threads(1);
+    // Enable multithreading (systems are written to avoid cross-entity writes).
+    world.set_threads(8);
 
     // Enable the Flecs Explorer
     world.set<flecs::Rest>({});

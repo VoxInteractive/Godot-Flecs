@@ -20,6 +20,7 @@ void FlecsWorld::_bind_methods()
     ClassDB::bind_method(D_METHOD("get_size_factor"), &FlecsWorld::get_size_factor);
     ClassDB::bind_method(D_METHOD("set_size_factor", "p_size_factor"), &FlecsWorld::set_size_factor);
     ClassDB::bind_method(D_METHOD("initialize_gol"), &FlecsWorld::initialize_game_of_life);
+    ClassDB::bind_method(D_METHOD("get_gol_texture"), &FlecsWorld::get_gol_texture);
     // Make size_factor editable in the Editor with range 0.25 - 4.0
     ADD_PROPERTY(
         PropertyInfo(Variant::FLOAT, "size_factor", PROPERTY_HINT_RANGE, "0.2,4.0,0.2", PROPERTY_USAGE_DEFAULT),
@@ -115,6 +116,62 @@ godot::Array FlecsWorld::get_alive_map()
     }
 
     return rows;
+}
+
+godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
+{
+    using namespace godot;
+
+    if (size.x <= 0 || size.y <= 0)
+    {
+        return Ref<ImageTexture>();
+    }
+
+    // Collect alive cell positions
+    std::vector<CellPos> alive_positions;
+    collect_alive_cells(world, alive_positions);
+
+    const int w = size.x;
+    const int h = size.y;
+    const int total = w * h;
+
+    // Build flat L8 buffer (one byte per pixel)
+    PackedByteArray data;
+    data.resize(total);
+    // initialize to 0
+    for (int i = 0; i < total; ++i)
+        data.set(i, uint8_t(0));
+
+    for (const auto &p : alive_positions)
+    {
+        if (p.x >= 0 && p.x < w && p.y >= 0 && p.y < h)
+        {
+            int idx = p.y * w + p.x;
+            data.set(idx, uint8_t(255));
+        }
+    }
+
+    // Create or update the Image (L8)
+    if (gol_image.is_null())
+    {
+        gol_image = Image::create_from_data(w, h, false, Image::FORMAT_L8, data);
+    }
+    else
+    {
+        gol_image->set_data(w, h, false, Image::FORMAT_L8, data);
+    }
+
+    // Create or update the ImageTexture
+    if (gol_texture.is_null())
+    {
+        gol_texture = ImageTexture::create_from_image(gol_image);
+    }
+    else
+    {
+        gol_texture->set_image(gol_image);
+    }
+
+    return gol_texture;
 }
 
 FlecsWorld::~FlecsWorld()

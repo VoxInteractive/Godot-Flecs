@@ -4,6 +4,8 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include <flecs/distr/flecs.h>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 
 namespace godot
 {
@@ -26,6 +28,12 @@ namespace godot
         // from GDScript as `get_alive_map()`.
         godot::Array get_alive_map();
 
+        // Build a Godot Image from the ECS alive/dead map and return an
+        // ImageTexture that is created once and updated in-place on
+        // subsequent calls. The Image uses Image::FORMAT_L8 (one byte per
+        // pixel). Returns an invalid Ref<ImageTexture> if size is zero.
+        godot::Ref<godot::ImageTexture> get_gol_texture();
+
         void _ready() override;
         void _physics_process(double delta) override;
 
@@ -38,6 +46,10 @@ namespace godot
         Vector2i size;
         double size_factor = 1.0;
         bool initialized = false;
+        // Cached image/texture reused across frames to avoid repeated
+        // allocations and to enable efficient texture updates.
+        godot::Ref<godot::Image> gol_image;
+        godot::Ref<godot::ImageTexture> gol_texture;
     };
 }
 

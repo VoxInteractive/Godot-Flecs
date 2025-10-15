@@ -19,8 +19,8 @@ namespace godot
         ~FlecsWorld();
 
         double get_age() const;
-        double get_size_factor() const;
-        void set_size_factor(double p_size_factor);
+        double get_resolution_factor() const;
+        void set_resolution_factor(double p_resolution_factor);
         // Initialize/register Game of Life systems and seed the grid if not already initialized
         void initialize_game_of_life();
         // Return a 2D (width x height) boolean map of alive/dead cells as
@@ -44,7 +44,7 @@ namespace godot
         flecs::world world;
         double age;
         Vector2i size;
-        double size_factor = 1.0;
+        double resolution_factor = 1.0;
         bool initialized = false;
         // Cached image/texture reused across frames to avoid repeated
         // allocations and to enable efficient texture updates.

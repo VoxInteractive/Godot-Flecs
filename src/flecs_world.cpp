@@ -18,21 +18,21 @@ void FlecsWorld::_bind_methods()
 {
     ClassDB::bind_method(D_METHOD("get_age"), &FlecsWorld::get_age);
     ClassDB::bind_method(D_METHOD("get_alive_map"), &FlecsWorld::get_alive_map);
-    ClassDB::bind_method(D_METHOD("get_size_factor"), &FlecsWorld::get_size_factor);
-    ClassDB::bind_method(D_METHOD("set_size_factor", "p_size_factor"), &FlecsWorld::set_size_factor);
+    ClassDB::bind_method(D_METHOD("get_resolution_factor"), &FlecsWorld::get_resolution_factor);
+    ClassDB::bind_method(D_METHOD("set_resolution_factor", "p_resolution_factor"), &FlecsWorld::set_resolution_factor);
     ClassDB::bind_method(D_METHOD("initialize_gol"), &FlecsWorld::initialize_game_of_life);
     ClassDB::bind_method(D_METHOD("get_gol_texture"), &FlecsWorld::get_gol_texture);
-    // Make size_factor editable in the Editor with range 0.25 - 4.0
+    // Make resolution_factor editable in the Editor with range 0.25 - 4.0
     ADD_PROPERTY(
-        PropertyInfo(Variant::FLOAT, "size_factor", PROPERTY_HINT_RANGE, "0.2,4.0,0.2", PROPERTY_USAGE_DEFAULT),
-        "set_size_factor",
-        "get_size_factor");
+        PropertyInfo(Variant::FLOAT, "resolution_factor", PROPERTY_HINT_RANGE, "0.25,1.0,0.25", PROPERTY_USAGE_DEFAULT),
+        "set_resolution_factor",
+        "get_resolution_factor");
 }
 
 FlecsWorld::FlecsWorld()
 {
     age = 0.0;
-    set_size_factor(size_factor);
+    set_resolution_factor(resolution_factor);
 }
 
 double FlecsWorld::get_age() const
@@ -40,20 +40,20 @@ double FlecsWorld::get_age() const
     return age;
 }
 
-double FlecsWorld::get_size_factor() const
+double FlecsWorld::get_resolution_factor() const
 {
-    return size_factor;
+    return resolution_factor;
 }
 
-void FlecsWorld::set_size_factor(double p_size_factor)
+void FlecsWorld::set_resolution_factor(double p_resolution_factor)
 {
-    size_factor = std::clamp(p_size_factor, 0.25, 4.0);
+    resolution_factor = std::clamp(p_resolution_factor, 0.25, 4.0);
     const Vector2i project_viewport_size = Vector2i(
         godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_width"),
         godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_height"));
     size = Vector2i(
-        static_cast<int>(project_viewport_size.x * size_factor),
-        static_cast<int>(project_viewport_size.y * size_factor));
+        static_cast<int>(project_viewport_size.x * resolution_factor),
+        static_cast<int>(project_viewport_size.y * resolution_factor));
 }
 
 void FlecsWorld::_ready()

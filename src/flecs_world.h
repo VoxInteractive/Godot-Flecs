@@ -3,9 +3,10 @@
 #define FLECS_WORLD_H
 
 #include <godot_cpp/classes/node.hpp>
-#include <flecs/distr/flecs.h>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
+
+#include <flecs/distr/flecs.h>
 
 namespace godot
 {

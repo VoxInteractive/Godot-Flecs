@@ -1,11 +1,8 @@
-#include "game_of_life.h"
-#include <cstdlib>
 #include <unordered_map>
-#include <vector>
-#include <algorithm>
-#include <thread>
-// Godot utility functions for debug prints
+
 #include <godot_cpp/variant/utility_functions.hpp>
+
+#include "game_of_life.h"
 
 using namespace godot;
 

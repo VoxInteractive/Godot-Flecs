@@ -1,18 +1,16 @@
+#include <string>
+#include <chrono>
+#include <algorithm>
 
-#include "flecs_world.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
-#include "ecs/game_of_life.h"
 #include <godot_cpp/classes/project_settings.hpp>
-#include <filesystem>
+#include <godot_cpp/classes/os.hpp>
 
-#include <algorithm>
-#include <chrono>
-#include <cstring>
-#include <string>
-#include <cstdio>
+#include "flecs_world.h"
+#include "ecs/game_of_life.h"
 
 using namespace godot;
 
@@ -246,8 +244,9 @@ void FlecsWorld::recreate_world_and_grid()
     // that alive cells exist and can be returned by get_alive_map().
     register_game_of_life_systems(world);
 
-    // Enable multithreading (systems are written to avoid cross-entity writes).
-    world.set_threads(8);
+    int cpu_count = OS::get_singleton()->get_processor_count();
+    const int worker_threads = std::max(1, std::min(64, cpu_count - 1));
+    world.set_threads(worker_threads);
 
     // Enable the Flecs Explorer and stats available at
     // https://www.flecs.dev/explorer/?page=stats&host=localhost

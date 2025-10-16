@@ -21,6 +21,8 @@ namespace godot
         double get_age() const;
         double get_resolution_factor() const;
         void set_resolution_factor(double p_resolution_factor);
+        int get_seed() const;
+        void set_seed(int p_seed);
         // Initialize/register Game of Life systems and seed the grid if not already initialized
         void initialize_game_of_life();
         // Return a 2D (width x height) boolean map of alive/dead cells as
@@ -32,7 +34,7 @@ namespace godot
         // ImageTexture that is created once and updated in-place on
         // subsequent calls. The Image uses Image::FORMAT_L8 (one byte per
         // pixel). Returns an invalid Ref<ImageTexture> if size is zero.
-        godot::Ref<godot::ImageTexture> get_gol_texture();
+        godot::Ref<godot::ImageTexture> get_game_of_life_texture();
 
         void _ready() override;
         void _physics_process(double delta) override;
@@ -45,11 +47,18 @@ namespace godot
         double age;
         Vector2i size;
         double resolution_factor = 1.0;
+        // Seed for random initialization of the game-of-life grid. Exposed to
+        // the editor so users can change seed at runtime and recreate the grid.
+        int seed = 42;
         bool initialized = false;
+        // Recreate ECS world, (re)register systems and initialize the grid
+        // with current size and default seed/probability. Also resets cached
+        // textures so they are recreated at the new resolution.
+        void recreate_world_and_grid();
         // Cached image/texture reused across frames to avoid repeated
         // allocations and to enable efficient texture updates.
-        godot::Ref<godot::Image> gol_image;
-        godot::Ref<godot::ImageTexture> gol_texture;
+        godot::Ref<godot::Image> game_of_life_image;
+        godot::Ref<godot::ImageTexture> game_of_life_texture;
     };
 }
 

@@ -35,7 +35,7 @@ static inline long long key_xy(int x, int y)
     return (static_cast<long long>(y) << 32) | (static_cast<unsigned int>(x));
 }
 
-void register_gol_systems(flecs::world &world)
+void register_game_of_life_systems(flecs::world &world)
 {
     // Ensure components are registered (names align with FlecsScript)
     world.component<Cell>()
@@ -89,7 +89,7 @@ void register_gol_systems(flecs::world &world)
             else if (!alive && has_alive) e.remove<Alive>(); });
 }
 
-void init_gol_grid(flecs::world &world, int width, int height, int seed, float alive_probability)
+void init_game_of_life_grid(flecs::world &world, int width, int height, int seed, float alive_probability)
 {
     g_cell_index.clear();
     g_grid_w = width;
@@ -97,7 +97,11 @@ void init_gol_grid(flecs::world &world, int width, int height, int seed, float a
     g_alive_cur.assign((size_t)width * (size_t)height, 0);
     g_alive_next.assign((size_t)width * (size_t)height, 0);
 
+    // Rebuild the grid: defer and first remove any existing Cell entities,
+    // then create the new set for the requested width/height.
     world.defer_begin();
+    world.each<Cell>([](flecs::entity e, Cell &)
+                     { e.destruct(); });
     std::srand(seed);
     for (int y = 0; y < height; ++y)
     {
@@ -169,6 +173,6 @@ void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *ou
 }
 
 // Accessors for optimized buffer
-const uint8_t *gol_alive_data() { return g_alive_cur.empty() ? nullptr : g_alive_cur.data(); }
-int gol_width() { return g_grid_w; }
-int gol_height() { return g_grid_h; }
+const uint8_t *game_of_life_alive_data() { return g_alive_cur.empty() ? nullptr : g_alive_cur.data(); }
+int game_of_life_width() { return g_grid_w; }
+int game_of_life_height() { return g_grid_h; }

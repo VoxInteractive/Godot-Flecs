@@ -5,15 +5,19 @@ extends FlecsWorld
 var tex: ImageTexture
 
 func _ready() -> void:
-	if has_method("initialize_gol"):
-		call("initialize_gol")
-
+	call("initialize_game_of_life")
+	
+	# Ensure the canvas sprite starts at the top-left and fills the viewport.
+	canvas.centered = false
+	canvas.position = Vector2.ZERO
+	var rf := get_resolution_factor()
+	if rf > 0.0:
+		canvas.scale = Vector2(1.0 / rf, 1.0 / rf)
 	canvas.texture = tex
-
-func _init_multimesh(_mm: MultiMesh, _total: int) -> void:
-	# Legacy no-op kept for compatibility; no longer used with texture-based rendering.
-	pass
 
 func _process(_delta: float) -> void:
 	# would subviewport be faster?
-	canvas.texture = get_gol_texture()
+	var rf := get_resolution_factor()
+	if rf > 0.0: # Keep the sprite scaled so the texture always fills the viewport.
+		canvas.scale = Vector2(1.0 / rf, 1.0 / rf)
+	canvas.texture = get_game_of_life_texture()

@@ -15,8 +15,8 @@ struct Alive
 };
 
 // Register Game of Life systems and optionally initialize the grid
-void register_gol_systems(flecs::world &world);
-void init_gol_grid(flecs::world &world, int width, int height, int seed = 42, float alive_probability = 0.2f);
+void register_game_of_life_systems(flecs::world &world);
+void init_game_of_life_grid(flecs::world &world, int width, int height, int seed = 42, float alive_probability = 0.2f);
 
 // Collect positions of alive cells; optionally compute max x/y encountered
 struct CellPos
@@ -28,8 +28,8 @@ void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *ou
 
 // Optimized simulation buffer accessors (row-major, size = width*height):
 // Returns non-owning pointer to current alive buffer (0 or 1 per cell).
-const uint8_t *gol_alive_data();
-int gol_width();
-int gol_height();
+const uint8_t *game_of_life_alive_data();
+int game_of_life_width();
+int game_of_life_height();
 
 #endif // GOL_SYSTEMS_H

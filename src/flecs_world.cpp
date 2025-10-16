@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <string>
+#include <cstdio>
 
 using namespace godot;
 
@@ -20,13 +22,20 @@ void FlecsWorld::_bind_methods()
     ClassDB::bind_method(D_METHOD("get_alive_map"), &FlecsWorld::get_alive_map);
     ClassDB::bind_method(D_METHOD("get_resolution_factor"), &FlecsWorld::get_resolution_factor);
     ClassDB::bind_method(D_METHOD("set_resolution_factor", "p_resolution_factor"), &FlecsWorld::set_resolution_factor);
-    ClassDB::bind_method(D_METHOD("initialize_gol"), &FlecsWorld::initialize_game_of_life);
-    ClassDB::bind_method(D_METHOD("get_gol_texture"), &FlecsWorld::get_gol_texture);
-    // Make resolution_factor editable in the Editor with range 0.25 - 4.0
+    ClassDB::bind_method(D_METHOD("get_seed"), &FlecsWorld::get_seed);
+    ClassDB::bind_method(D_METHOD("set_seed", "p_seed"), &FlecsWorld::set_seed);
+    ClassDB::bind_method(D_METHOD("initialize_game_of_life"), &FlecsWorld::initialize_game_of_life);
+    ClassDB::bind_method(D_METHOD("get_game_of_life_texture"), &FlecsWorld::get_game_of_life_texture);
+    // Make resolution_factor editable in the Editor with range 0.1 - 1.0
     ADD_PROPERTY(
-        PropertyInfo(Variant::FLOAT, "resolution_factor", PROPERTY_HINT_RANGE, "0.25,1.0,0.25", PROPERTY_USAGE_DEFAULT),
+        PropertyInfo(Variant::FLOAT, "resolution_factor", PROPERTY_HINT_RANGE, "0.1,1.0,0.1", PROPERTY_USAGE_DEFAULT),
         "set_resolution_factor",
         "get_resolution_factor");
+    // Make seed editable in the Editor
+    ADD_PROPERTY(
+        PropertyInfo(Variant::INT, "seed", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT),
+        "set_seed",
+        "get_seed");
 }
 
 FlecsWorld::FlecsWorld()
@@ -45,20 +54,42 @@ double FlecsWorld::get_resolution_factor() const
     return resolution_factor;
 }
 
+int FlecsWorld::get_seed() const
+{
+    return seed;
+}
+
+void FlecsWorld::set_seed(int p_seed)
+{
+    seed = p_seed;
+    if (initialized)
+    {
+        recreate_world_and_grid();
+    }
+}
+
 void FlecsWorld::set_resolution_factor(double p_resolution_factor)
 {
-    resolution_factor = std::clamp(p_resolution_factor, 0.25, 4.0);
+    // Clamp to [0.1, 1.0].
+    // 1.0 => one texture pixel per screen pixel (full-resolution grid)
+    // 0.5 => one texture pixel spans 2x2 screen pixels (half-resolution grid)
+    resolution_factor = std::clamp(p_resolution_factor, 0.1, 1.0);
     const Vector2i project_viewport_size = Vector2i(
         godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_width"),
         godot::ProjectSettings::get_singleton()->get_setting("display/window/size/viewport_height"));
     size = Vector2i(
         static_cast<int>(project_viewport_size.x * resolution_factor),
         static_cast<int>(project_viewport_size.y * resolution_factor));
+
+    // If already initialized, recreate ECS world+grid to match new size.
+    if (initialized)
+    {
+        recreate_world_and_grid();
+    }
 }
 
 void FlecsWorld::_ready()
 {
-    // Print world size for verification
     godot::UtilityFunctions::print("FlecsWorld initialised. size=", size);
     // Ensure initialization happens once even if called from GDScript explicitly.
     initialize_game_of_life();
@@ -119,7 +150,7 @@ godot::Array FlecsWorld::get_alive_map()
     return rows;
 }
 
-godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
+godot::Ref<godot::ImageTexture> FlecsWorld::get_game_of_life_texture()
 {
     using namespace godot;
 
@@ -136,8 +167,8 @@ godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
     PackedByteArray data;
     data.resize(total);
     // Prefer reading optimized buffer when available
-    const uint8_t *buf = gol_alive_data();
-    if (buf && gol_width() == w && gol_height() == h)
+    const uint8_t *buf = game_of_life_alive_data();
+    if (buf && game_of_life_width() == w && game_of_life_height() == h)
     {
         // Copy once into PackedByteArray
         uint8_t *dst = data.ptrw();
@@ -164,26 +195,26 @@ godot::Ref<godot::ImageTexture> FlecsWorld::get_gol_texture()
     }
 
     // Create or update the Image (L8)
-    if (gol_image.is_null())
+    if (game_of_life_image.is_null())
     {
-        gol_image = Image::create_from_data(w, h, false, Image::FORMAT_L8, data);
+        game_of_life_image = Image::create_from_data(w, h, false, Image::FORMAT_L8, data);
     }
     else
     {
-        gol_image->set_data(w, h, false, Image::FORMAT_L8, data);
+        game_of_life_image->set_data(w, h, false, Image::FORMAT_L8, data);
     }
 
     // Create or update the ImageTexture
-    if (gol_texture.is_null())
+    if (game_of_life_texture.is_null())
     {
-        gol_texture = ImageTexture::create_from_image(gol_image);
+        game_of_life_texture = ImageTexture::create_from_image(game_of_life_image);
     }
     else
     {
-        gol_texture->set_image(gol_image);
+        game_of_life_texture->set_image(game_of_life_image);
     }
 
-    return gol_texture;
+    return game_of_life_texture;
 }
 
 FlecsWorld::~FlecsWorld()
@@ -197,25 +228,41 @@ void FlecsWorld::initialize_game_of_life()
         return;
 
     initialized = true;
+    recreate_world_and_grid();
+}
+
+void FlecsWorld::recreate_world_and_grid()
+{
+    // Reset cached textures first so they will be recreated with new size.
+    if (game_of_life_image.is_valid())
+        game_of_life_image.unref();
+    if (game_of_life_texture.is_valid())
+        game_of_life_texture.unref();
+
+    // Recreate ECS world by assigning a fresh instance.
+    world = flecs::world{};
 
     // Register Game of Life components/systems and initialize the grid so
     // that alive cells exist and can be returned by get_alive_map().
-    register_gol_systems(world);
+    register_game_of_life_systems(world);
+
     // Enable multithreading (systems are written to avoid cross-entity writes).
     world.set_threads(8);
 
-    // Enable the Flecs Explorer
+    // Enable the Flecs Explorer and stats available at
+    // https://www.flecs.dev/explorer/?page=stats&host=localhost
     world.set<flecs::Rest>({});
     world.import <flecs::stats>();
 
-    // Initialize grid with a modest alive probability. Use a fixed seed for
-    // reproducibility; callers can re-seed or re-init via exposed methods.
-    int seed = 42;
+    // Initialize grid with a modest alive probability. Use the configured seed.
     float alive_probability = 0.1f;
-    init_gol_grid(world, size.x, size.y, seed, alive_probability);
-    godot::UtilityFunctions::print("FlecsWorld initialized grid with seed=", seed, " prob=", alive_probability);
+    init_game_of_life_grid(world, size.x, size.y, seed, alive_probability);
 
-    // Diagnostic: report initial number of alive cells created by init_gol_grid
-    std::vector<CellPos> alive_positions;
-    collect_alive_cells(world, alive_positions);
+    long long total_cells = static_cast<long long>(size.x) * static_cast<long long>(size.y);
+
+    godot::UtilityFunctions::print(
+        "FlecsWorld initialized grid with seed=", seed,
+        " alive_probability=", alive_probability,
+        " (", size.x, "x", size.y, ")",
+        " total_cells=", godot::String(std::to_string(total_cells).c_str()));
 }

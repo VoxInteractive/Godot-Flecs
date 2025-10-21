@@ -1,8 +1,9 @@
 #ifndef GOL_SYSTEMS_H
 #define GOL_SYSTEMS_H
 
-#include <flecs/distr/flecs.h>
+#include <flecs.h>
 #include <vector>
+#include <godot_cpp/classes/random_number_generator.hpp>
 
 // Shared component declarations for rendering and systems
 struct Cell
@@ -10,8 +11,11 @@ struct Cell
     int x;
     int y;
 };
-struct Alive
+
+struct Grid
 {
+    int width;
+    int height;
 };
 
 // Register Game of Life systems and optionally initialize the grid
@@ -24,7 +28,7 @@ struct CellPos
     int x;
     int y;
 };
-void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *out_max_x = nullptr, int *out_max_y = nullptr);
+void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out);
 
 // Optimized simulation buffer accessors (row-major, size = width*height):
 // Returns non-owning pointer to current alive buffer (0 or 1 per cell).

@@ -11,11 +11,8 @@ struct Cell
     int x;
     int y;
 };
-
-struct Grid
+struct Alive
 {
-    int width;
-    int height;
 };
 
 // Register Game of Life systems and optionally initialize the grid
@@ -28,7 +25,7 @@ struct CellPos
     int x;
     int y;
 };
-void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out);
+void collect_alive_cells(flecs::world &world, std::vector<CellPos> &out, int *out_max_x = nullptr, int *out_max_y = nullptr);
 
 // Optimized simulation buffer accessors (row-major, size = width*height):
 // Returns non-owning pointer to current alive buffer (0 or 1 per cell).

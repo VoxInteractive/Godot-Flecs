@@ -156,11 +156,17 @@ godot::Ref<godot::ImageTexture> FlecsWorld::get_game_of_life_texture()
     data.resize(total);
     uint8_t *dst = data.ptrw();
 
-    const uint8_t *buf = game_of_life_alive_data();
-
-    // Copy from simulation buffer and scale 0/1 to 0/255 in a single pass.
-    for (int i = 0; i < total; ++i)
-        dst[i] = buf[i] ? 255 : 0;
+    // Collect alive positions via ECS query and mark pixels
+    memset(dst, 0, (size_t)total);
+    std::vector<CellPos> alive_positions;
+    collect_alive_cells(world, alive_positions);
+    for (const auto &p : alive_positions)
+    {
+        if ((unsigned)p.x < (unsigned)w && (unsigned)p.y < (unsigned)h)
+        {
+            dst[p.y * w + p.x] = 255;
+        }
+    }
 
     // Create or update the Image (L8)
     if (game_of_life_image.is_null())

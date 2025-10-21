@@ -25,7 +25,7 @@ namespace godot
         int get_seed() const;
         void set_seed(int p_seed);
 
-        // Initialize/register Game of Life systems and seed the grid if not already initialized
+        // Initialize/register Game of Life systems and seed the grid if not already initialised
         void initialize_game_of_life();
 
         // Return a 2D (width x height) boolean map of alive/dead cells as

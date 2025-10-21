@@ -6,19 +6,6 @@
 
 using namespace godot;
 
-// Temporary per-cell component to store neighbor counts each tick.
-// Only written for the entity being iterated to enable parallelization.
-struct NeighborCount
-{
-    int n;
-};
-
-// Temporary per-cell component to store next-state decision.
-struct NextAlive
-{
-    bool v;
-};
-
 static inline int neighbor_offsets[8][2] = {
     {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
 
@@ -39,8 +26,6 @@ void register_game_of_life_systems(flecs::world &world)
         .member<int>("x")
         .member<int>("y");
     world.component<Alive>();
-    world.component<NeighborCount>().member<int>("n");
-    world.component<NextAlive>().member<bool>("v");
 
     // Phase A: compute next state into flat buffer letting Flecs handle threading.
     world.system<const Cell>("SimulateBuffers")
@@ -65,6 +50,7 @@ void register_game_of_life_systems(flecs::world &world)
             const size_t idx = (size_t)y * (size_t)W + (size_t)x;
             const uint8_t alive = g_alive_cur[idx];
             g_alive_next[idx] = alive ? (count == 2 || count == 3) : (count == 3); });
+
     // Phase B: swap buffers once (single-threaded system).
     world.system<>("SwapBuffers")
         .kind(flecs::PostUpdate)
@@ -105,9 +91,7 @@ void init_game_of_life_grid(flecs::world &world, int width, int height, int seed
         for (int x = 0; x < width; ++x)
         {
             auto e = world.entity()
-                         .set<Cell>({x, y})
-                         .set<NeighborCount>({0})
-                         .set<NextAlive>({false});
+                         .set<Cell>({x, y});
             float r = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
             const bool alive = (r < alive_probability);
             if (alive)
